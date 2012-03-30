@@ -30,6 +30,8 @@ import com.google.gerrit.common.data.PatchSetDetail;
 import com.google.gerrit.reviewdb.client.Account;
 import com.google.gerrit.reviewdb.client.AccountDiffPreference;
 import com.google.gerrit.reviewdb.client.AccountGeneralPreferences;
+import com.google.gerrit.reviewdb.client.AccountGeneralPreferences.DownloadCommand;
+import com.google.gerrit.reviewdb.client.AccountGeneralPreferences.DownloadScheme;
 import com.google.gerrit.reviewdb.client.Change;
 import com.google.gerrit.reviewdb.client.ChangeMessage;
 import com.google.gerrit.reviewdb.client.Patch;
@@ -37,15 +39,12 @@ import com.google.gerrit.reviewdb.client.PatchSet;
 import com.google.gerrit.reviewdb.client.PatchSetInfo;
 import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.reviewdb.client.UserIdentity;
-import com.google.gerrit.reviewdb.client.AccountGeneralPreferences.DownloadCommand;
-import com.google.gerrit.reviewdb.client.AccountGeneralPreferences.DownloadScheme;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.logical.shared.OpenEvent;
 import com.google.gwt.event.logical.shared.OpenHandler;
 import com.google.gwt.user.client.Window;
-import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.DisclosurePanel;
@@ -56,6 +55,7 @@ import com.google.gwt.user.client.ui.HTMLTable.CellFormatter;
 import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.Panel;
 import com.google.gwtexpui.clippy.client.CopyableLabel;
+import com.google.gwtexpui.safehtml.client.SafeHtmlBuilder;
 import com.google.gwtjsonrpc.client.VoidResult;
 
 import java.util.HashSet;
@@ -113,6 +113,14 @@ class PatchSetComplexDisclosurePanel extends ComplexDisclosurePanel
       draftLabel.addStyleName(Gerrit.RESOURCES.css().patchSetRevision());
       getHeader().add(draftLabel);
     }
+
+    SafeHtmlBuilder m = new SafeHtmlBuilder();
+    m.openSpan();
+    m.setStyleName(Gerrit.RESOURCES.css().commentCell());
+    FormatUtil.commentCounts(m, Gerrit.RESOURCES.css().drafts(),
+        ps.getDraftCount(), ps.getCommentCounts(), changeDetail.getAccounts());
+    m.closeSpan();
+    getHeader().add(m.toSafeHtml().toInlineWidget());
 
     if (isOpen) {
       ensureLoaded(changeDetail.getCurrentPatchSetDetail());

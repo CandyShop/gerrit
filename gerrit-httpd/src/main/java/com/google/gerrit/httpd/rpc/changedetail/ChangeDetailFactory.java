@@ -23,8 +23,10 @@ import com.google.gerrit.common.data.SubmitRecord;
 import com.google.gerrit.common.errors.NoSuchEntityException;
 import com.google.gerrit.httpd.rpc.Handler;
 import com.google.gerrit.reviewdb.client.Account;
+import com.google.gerrit.reviewdb.client.Account.Id;
 import com.google.gerrit.reviewdb.client.Change;
 import com.google.gerrit.reviewdb.client.ChangeMessage;
+import com.google.gerrit.reviewdb.client.PatchLineComment;
 import com.google.gerrit.reviewdb.client.PatchSet;
 import com.google.gerrit.reviewdb.client.PatchSetAncestor;
 import com.google.gerrit.reviewdb.client.PatchSetApproval;
@@ -169,6 +171,49 @@ public class ChangeDetailFactory extends Handler<ChangeDetail> {
       patchsetsById.put(ps.getId(), ps);
     }
     detail.setPatchSets(patches);
+    loadCommentStatistics(patches);
+  }
+
+  private static boolean isForPatchSet(PatchLineComment c, PatchSet ps) {
+    return c.getKey().getParentKey().getParentKey().get() == ps.getId().get();
+  }
+
+  private void loadCommentStatistics(List<PatchSet> patchSets)
+      throws OrmException {
+    ResultSet<PatchLineComment> comments = db.patchComments().byChange(changeId);
+    for (PatchLineComment c : comments) {
+      for (PatchSet ps : patchSets) {
+        if (! isForPatchSet(c, ps)) {
+          continue;
+        }
+        Map<Id, String> counts = ps.getCommentCounts();
+        if (counts == null) {
+          counts = new HashMap<Account.Id, String>();
+          ps.setCommentCounts(counts);
+        }
+        if (counts.containsKey(c.getAuthor())) {
+          counts.put(c.getAuthor(),
+              "" + (Integer.parseInt(counts.get(c.getAuthor())) + 1));
+        } else {
+          aic.want(c.getAuthor());
+          counts.put(c.getAuthor(), "1");
+        }
+        ps.setCommentCounts(counts);
+      }
+    }
+
+    final com.google.gerrit.server.CurrentUser user = control.getCurrentUser();
+    if (user instanceof IdentifiedUser) {
+      final Account.Id me = ((IdentifiedUser) user).getAccountId();
+      for (PatchSet ps : patchSets) {
+        int cnt = 0;
+        for (PatchLineComment c : db.patchComments().draftByPatchSetAuthor(
+            ps.getId(), me)) {
+          cnt++;
+        }
+        ps.setDraftCount(cnt);
+      }
+    }
   }
 
   private void loadMessages() throws OrmException {
